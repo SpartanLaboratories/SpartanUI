@@ -143,19 +143,19 @@ game client ──> ui-core ──api──> graphics-core ──> assets-core
 ### ui-core (KMP)
 
 - **Behaviour is written once here.** Platforms only implement graphics' small set of services, so SpartanUI has no platform modules for now.
+- **Names:** the elements are named from the shared [UI vocabulary](https://github.com/SpartanLaboratories/.github/blob/main/claude/nomenclature/ui.md). SpartanUI need not build every element there, but one it builds under one of its names matches that name's definition.
 - **Basic elements:** each adds a position in its parent, hit-testing and callbacks to a shape. The set is closed; custom elements are built from it.
   - `Box` is a rectangle with a colour.
-  - `Image` is a rectangle with a texture.
+  - `Image` is a rectangle with a texture. It replaces `Portrait`, whose behaviour becomes this element's implementation.
   - `Text` is a text shape.
   - `Group` holds children, with an optional background and opt-in clipping and scrolling.
 
   Every basic element exposes its shape's opt-in outline, which is how borders are drawn.
 - **Built-in elements:** made from the basic ones.
-  - `Label` is a `Box` with `Text`.
-  - `Panel` is a `Group` with a background.
+  - `Label` is a `Box` with `Text`: the plain label, a Label of none of the vocabulary's kinds.
+  - `Panel` is a `Group` with a heading: its own title, or the element that shows it, such as a tab.
   - `Button` is a `Box` with `Text`, plus hover and trigger states and a `shortcut` shorthand (see [Keyboard shortcuts](#keyboard-shortcuts)).
   - `StatBar` is a `Group` of two `Box`es.
-  - `Image` (the element) replaces `Portrait`.
 - **Positioning:**
   - Positions are fractions of the parent, as today.
   - Sizes can be locked to an aspect ratio. Each element chooses which side wins, defaulting to fit inside and centre.
@@ -361,7 +361,7 @@ Rules for every PR:
 | **U1** | Skeleton, same conventions, `ui-core` with `api(graphics-core)` through the composite build | G1 |
 | **U2** | Element tree: basic elements on shapes (with their opt-in outlines), `Group` with runtime add/remove and opt-in clipping, fractional positioning, aspect lock, conversion to shapes; layout tests from `UiTest` ported | U1, G3 |
 | **U3** | Dispatch and callbacks: pointer routing, opt-in pass-through, hover, triggers, guard veto, multiple callbacks with context and removable handles, the unhandled-input sink, scene and stage key binding tables; dispatch tests ported | U2, G4 |
-| **U4** | Built-in elements: `Label`, `Panel`, `Button` (with the `shortcut` shorthand), `StatBar`, `Image`; `ButtonTest`, `StatBarTest`, `PortraitTest` ported | U3 |
+| **U4** | Built-in elements: `Label`, `Panel`, `Button` (with the `shortcut` shorthand), `StatBar`; `Portrait` ported as the implementation of `Image`; `ButtonTest`, `StatBarTest`, `PortraitTest` ported | U3 |
 | **U5** | Opt-in scrolling for `Group` | U2 |
 | **U6** | Release `0.1.0` (manual, by you) | U1–U5, G7 |
 
