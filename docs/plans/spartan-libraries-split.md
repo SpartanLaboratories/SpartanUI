@@ -336,7 +336,7 @@ Rules for every PR:
 
 | Item | Content | Status |
 |---|---|---|
-| **P0** | This plan, on `claude/eloquent-babbage-69uh9q` in this repo | Written; no PR opened |
+| **P0** | This plan, on `main` in this repo | Written; no PR opened |
 | Issue | [GeneralTools#7](https://github.com/SpartanLaboratories/GeneralTools/issues/7): make GeneralTools multiplatform | Filed |
 | Issue | [MyGameTools#132](https://github.com/SpartanLabsGaming/MyGameTools/issues/132): a GameTools client, counterpart to `GameServer` | Filed |
 | **You** | Create `SpartanLaboratories/SpartanGraphics` and `SpartanLaboratories/SpartanUI` | Done |
