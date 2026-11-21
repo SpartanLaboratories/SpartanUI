@@ -74,6 +74,7 @@ Composed from the basic elements. Each is named by what it does.
 | **TextBoard** | A self-contained block of text inside a Panel, like a Card but holding only that text: no title, no other elements. | a Box with an outline holding Text, laid out on its own line. |
 | **Cell** | The intersection of a Row and a column in a table. | a Box, or a bare Group, at one Row and one column, holding Text and other elements. |
 | **Row** | One subject across a table's columns. | a Group of Cells in a line, led by its subject's name. |
+| **Orbit** | A track round a centre on which the items of one class stand, the classes in order outwards. | a Group of its items placed along a Line round the centre, a circle or an arc. |
 
 ```jsonl
 {"term":"Card","not":["Bubble"]}
