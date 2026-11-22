@@ -91,3 +91,57 @@ deployment branch policy, `master`, its default branch. The environment was crea
 the repository's first Pages deployment at 02:53:17 UTC, so it exists before any deployment.
 `https://spartanlaboratories.github.io/WebTools/.nojekyll` answers 200, and a missing path under `/WebTools/` answers 404
 with the body of that repository's `website/404.html`.
+
+## Summary
+
+### The deploy workflow
+
+- **Two jobs.** A `build` job checks out the repository, assembles `_site/` from `website/` and `docs/brand/`, adds
+  `.nojekyll`, and uploads the Pages artifact. A `deploy` job, `needs: build`, deploys it to the `github-pages`
+  environment with `actions/deploy-pages`, the layout the action's README recommends. GitHub's single-job starter
+  workflow does not fit: its one job holds the Pages and OIDC scopes while it handles repository content, which the
+  organization's standard rules out. ([findings, sections 2 and 4](pages-deployment-workflow.md#2-bottom-line); claims
+  4 and 12)
+- **Permissions.** `contents: read` at workflow level, which `build` inherits and its checkout needs; the artifact
+  upload uses no token scope. `deploy` declares exactly `pages: write` and `id-token: write`. A job-level block sets
+  every scope it does not list to `none`, and `actions/deploy-pages` reads the artifact through the runner's artifact
+  service, so the job needs no `contents` or `actions` scope. GitHub's Pages guide shows a deploy job holding
+  `contents: read` as well, beside text stating the same two-scope minimum as the action's README; adding
+  `contents: read` to the deploy job is the fallback if a deployment ever fails on a permission. (claims 4 to 6 and 8;
+  verification results)
+- **`.nojekyll`.** Created by the assembly step and shipped by passing `include-hidden-files: true` to
+  `actions/upload-pages-artifact@v5`: since v4 the artifact drops every dotfile, with no warning, unless told
+  otherwise. Creating it at publish time keeps it out of the source tree, where an empty dotfile is easily lost; a
+  committed copy would need the same input. Whether Jekyll runs at all for a site deployed from an artifact is not
+  documented: GitHub documents Jekyll builds for sites published from a branch, and one outside report says an artifact
+  deployment never runs it. The file costs one `touch`, and the standard requires it. (claims 1, 2, 15 and 16)
+- **No `actions/configure-pages`.** For a hand-written site it only reads the Pages settings and sets outputs nothing
+  uses, and that read would run in a job without the `pages` scope. (claim 7)
+- **Concurrency.** One workflow-level group, `pages`, with `cancel-in-progress: false` and the default single pending
+  slot. A deployment in progress is never cancelled; a newer run replaces a pending one, so the newest pushed commit is
+  the last deployed. `queue: max` would deploy every intermediate commit in turn, which a static page has no use for.
+  Pending runs are ordered by the time they started waiting, without a guarantee for near-simultaneous pushes.
+  (claims 9 to 12)
+- **Action versions and pinning.** The current majors are `actions/checkout@v7` (v7.0.1),
+  `actions/upload-pages-artifact@v5` (v5.0.0) and `actions/deploy-pages@v5` (v5.0.1). GitHub's secure-use reference
+  favours pinning by commit SHA. A SHA pin stays current only with an update tool such as Dependabot, which the
+  repository does not have; the organization's other Pages workflows pin these same first-party actions by major tag,
+  and the major tags are recommended here. (claims 3 and 14)
+- **Triggers and the first run.** `push` to `main`, and `workflow_dispatch` for a run by hand. `workflow_dispatch`
+  receives events only for a workflow file already on the default branch, so the first run is the push that merges
+  the workflow; the Pages source must be GitHub Actions by then, or the deploy job fails. (claim 18)
+
+### The Pages setting and its environment
+
+- The Pages source is set to GitHub Actions (`build_type: workflow`) through `POST /repos/{owner}/{repo}/pages`, or
+  in the repository's Pages settings. GitHub creates the `github-pages` environment itself and recommends limiting it
+  to the default branch; on WebTools the environment holds one branch rule, its default branch, and existed before
+  its first deployment. A deployment from `main` passes such a rule, and a manual run from another branch cannot
+  publish. (claim 13; verification results)
+
+### The 404 page
+
+- GitHub serves the artifact's root `404.html` for a missing path at any depth under the project prefix, so every
+  link and asset reference in it is absolute under `/SpartanUI/`; relative references would resolve against the
+  missing path and break. It carries no link to `/api/`, which does not exist until the repository has Kotlin source.
+  (claim 17; verification results)
