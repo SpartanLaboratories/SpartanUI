@@ -1,14 +1,15 @@
-# Research: GitHub Pages deployment for the SpartanUI project site
+# Research: the SpartanUI project site
 
 This folder holds the research behind the plan for
 [SpartanLaboratories/SpartanUI#2](https://github.com/SpartanLaboratories/SpartanUI/issues/2): a project site
-deployed to GitHub Pages, and the organization's branding. The organization's standard is
-[`documentation/dokka.md`](https://github.com/SpartanLaboratories/.github/blob/main/documentation/dokka.md) in
-`SpartanLaboratories/.github`.
+deployed to GitHub Pages, the organization's branding, and the tests of the site's script. The organization's
+standard is [`documentation/dokka.md`](https://github.com/SpartanLaboratories/.github/blob/main/documentation/dokka.md)
+in `SpartanLaboratories/.github`.
 
 The rest of the design (the landing page, the branding files, the repository's own documents) rests on facts
 about this repository and about the organization's earlier adoptions of the standard, which the plan states with
-their sources. One question needs evidence from outside the organization.
+their sources. Three questions need evidence from outside the organization: the Pages workflow, the test toolchain
+for the site's script, and the accessibility check of the site's pages.
 
 ## Questions
 
@@ -54,6 +55,77 @@ the published site, and no run cancels a deployment in progress?
   Actions artifact; and its security hardening guidance on pinning actions.
 
 **Findings:** [`pages-deployment-workflow.md`](pages-deployment-workflow.md).
+
+### 2. How should the repository test the site's script?
+
+How should the repository run automated tests of `website/assets/site.js` in the component set — a
+dependency-free script that runs once at page load, reads a stored theme from `localStorage`, falls back to
+`prefers-color-scheme` through `matchMedia`, and toggles the theme on a click — with both browser APIs stubbed,
+locally and in CI, using the smallest toolchain that stays maintained?
+
+**Options worth comparing.**
+
+- The test runner and DOM emulator: Node's built-in test runner (`node --test`) with jsdom; Vitest with jsdom;
+  Vitest with happy-dom; Jest with jsdom.
+- How the tests run the shipped script unchanged in the emulated page: jsdom's `runScripts` setting with
+  `window.eval`, an injected `<script>` element, or a module import.
+- How the tests stub `localStorage`, including storage that throws on read and on write, and `matchMedia`, which
+  a DOM emulator may not implement.
+- The Node version the toolchain and CI pin, and how CI installs and runs it (`actions/setup-node`, its npm cache,
+  `npm ci` from a committed lockfile).
+
+**Requirements an answer must meet.**
+
+- The tests run the shipped `site.js` file, unchanged in behaviour, each in a fresh document.
+- The stubs cover a stored `light` or `dark` choice, a light system preference on a first visit, no preference
+  (the page's `dark` default stays), the click toggle that switches and stores the theme, and storage that throws
+  on read and on write while the toggle still works.
+- The toolchain installs reproducibly from a committed lockfile and runs on the Node version CI uses and on
+  Node 24, the version on the development machine.
+- It adds as few dependencies as the job needs, under licences compatible with the repository's Apache-2.0, at
+  current, maintained versions.
+- A CI job holding `contents: read` runs the tests on each push and pull request.
+- The repository has no Node tooling today, and will later hold a Gradle build at its root.
+
+**Evidence that would settle it.**
+
+- The current releases, documentation and changelogs of Node's test runner, Vitest, Jest, jsdom and happy-dom:
+  their stability, their DOM environments, jsdom's `runScripts` and its storage, the browser APIs each emulator
+  implements.
+- Node's release schedule on 2026-11-22: which line is Active LTS.
+- `actions/setup-node`: its current major, its inputs for the Node version and the npm cache.
+- Each package's licence and dependency count, from its package metadata.
+
+**Findings:** [`js-test-toolchain.md`](js-test-toolchain.md).
+
+### 3. How should the site's pages be checked for accessibility?
+
+How should the change check the landing page and its 404 page for keyboard access and accessibility in both colour
+themes — the skip link, the icon-only theme toggle named by `aria-label`, focus visibility, reduced motion and
+colour contrast — automatically in the test toolchain, or by hand in a browser?
+
+**Options worth comparing.**
+
+- An automated audit with axe-core inside the DOM emulator.
+- An automated audit in a real headless browser, such as Playwright with axe-core.
+- A manual audit in a browser, with axe DevTools or Lighthouse, beside a keyboard-only pass.
+
+**Requirements an answer must meet.**
+
+- The check covers colour contrast and accessible names in both themes.
+- It covers the skip link reaching the main content, and the theme toggle working by keyboard with a visible focus
+  ring.
+- It can be repeated on the live site after the first deployment.
+- It adds no browser download to the repository's CI unless what it gains justifies one.
+
+**Evidence that would settle it.**
+
+- axe-core's documentation on the rules that need a rendering engine, colour contrast inside jsdom among them.
+- The current axe-core, axe DevTools and Lighthouse releases, and what their accessibility audits cover.
+- The WCAG 2.2 success criteria behind the checks: bypass blocks, keyboard, focus visible, contrast minimum, and
+  name, role and value.
+
+**Findings:** [`accessibility-audit.md`](accessibility-audit.md).
 
 ## Verification results
 
