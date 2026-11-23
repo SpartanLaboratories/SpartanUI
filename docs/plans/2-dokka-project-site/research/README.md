@@ -129,6 +129,8 @@ colour contrast — automatically in the test toolchain, or by hand in a browser
 
 ## Verification results
 
+### The Pages workflow (question 1)
+
 Every load-bearing claim of [`pages-deployment-workflow.md`](pages-deployment-workflow.md) (its section 8) was
 re-checked against its source on 2026-11-21.
 
@@ -163,6 +165,27 @@ deployment branch policy, `master`, its default branch. The environment was crea
 the repository's first Pages deployment at 02:53:17 UTC, so it exists before any deployment.
 `https://spartanlaboratories.github.io/WebTools/.nojekyll` answers 200, and a missing path under `/WebTools/` answers 404
 with the body of that repository's `website/404.html`.
+
+### The site script's tests and the accessibility check (questions 2 and 3)
+
+Every load-bearing claim of [`js-test-toolchain.md`](js-test-toolchain.md) (16) and
+[`accessibility-audit.md`](accessibility-audit.md) (12) was re-checked against its source on 2026-11-22. All 28 hold.
+
+| Claims | Result |
+|---|---|
+| Node 24's test runner is Stable; `node --test` takes quoted globs and discovers `**/*.test.js` and `**/test/**` by default | Holds |
+| Node 26 is Active LTS from 2026-10-28 and Node 24 Maintenance LTS until 2028-04-30; the latest releases are 24.22.3 and 26.13.1 | Holds |
+| jsdom 31.0.1 is the latest release (2026-11-13, MIT), accepting Node `^22.22.2 \|\| ^24.15.0 \|\| >=26.0.0`; with `runScripts: "outside-only"` its `window.eval` runs scripts with the jsdom window as the global; its `url` defaults to `about:blank`; it does not implement `matchMedia`; its README endorses `Object.defineProperty()` to change what the window returns | Holds. The README does not mention `matchMedia`; the project's own test expectations list it as not implemented |
+| `actions/setup-node` v7.1.0 (2026-10-08) has the inputs `node-version`, `node-version-file`, `cache` and `package-manager-cache`, runs on `node24`, and uses `node-version` when both version inputs are given; `actions/checkout`'s latest release is v7.0.1 | Holds |
+| Vitest 5.1.1, Jest 30.5.2 and happy-dom 21.0.4 are MIT; `jest-environment-jsdom` 30.5.2 depends on jsdom `^26.1.0`; happy-dom's advisories include critical and high escapes from its script context | Holds |
+| axe-core's `color-contrast` rule does not work in jsdom, which does no layout or rendering | Holds |
+| axe-core needs every WCAG tag named (`wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa`; there is no `wcag22a`), and an `incomplete` result needs further testing | Holds |
+| axe-core 4.14.1 is the latest release, under MPL-2.0; jsDelivr serves it, and the file's SHA-384 is `xt1SFg49QaDwsyt0Xfs2XAyBtYPClXl3X2q5OOLeGAUmq9jZTYIMdztpF99WdhiH` | Holds |
+| Lighthouse 13.6.0 runs axe-core 4.14.0 with the tags `wcag2a` and `wcag2aa` only, its score weighted by axe's impact assessments | Holds |
+| Automated tools missed a large share of known barriers in GDS's 2017 test | Holds |
+| Playwright's browsers take a few hundred megabytes, and it can drive an installed Chrome or Edge; the hosted Ubuntu 24.04 image carries Google Chrome 157 | Holds |
+| The WCAG 2.2 wording for 2.4.1, 2.4.7, 1.4.11, 1.4.3 and 4.1.2 | Holds. The Understanding page for 1.4.11 discusses focus indicators and their contrast |
+| A GitHub Pages project site in the organization sends no content-security policy | Holds for `https://spartanlaboratories.github.io/WebTools/` on 2026-11-23 |
 
 ## Summary
 
@@ -217,3 +240,45 @@ with the body of that repository's `website/404.html`.
   link and asset reference in it is absolute under `/SpartanUI/`; relative references would resolve against the
   missing path and break. It carries no link to `/api/`, which does not exist until the repository has Kotlin source.
   (claim 17; verification results)
+
+### The site script's tests
+
+- **Node's built-in test runner with jsdom.** `node --test`, Stable on Node 24, with jsdom 31.0.1 (MIT) as the one
+  development dependency: 28 packages in the lockfile, against 76 to 350 for the Vitest and Jest setups, which bring
+  features these tests do not use. happy-dom is also left out for its run of security advisories, in a tool that runs
+  page script inside the host process. ([findings](js-test-toolchain.md#bottom-line), sections 1, 4 and 8)
+- **The shipped script runs unchanged.** Each test loads the real `website/index.html` into a new jsdom window with
+  `runScripts: "outside-only"`, installs its stubs, then runs the real `website/assets/site.js` with `window.eval`. The
+  page's own script tag does not run, so the script runs once, after the stubs; `site.js` needs no change. (findings 5)
+- **The stubs.** jsdom has no `matchMedia`, so a function that matches the exact query string stands in for it.
+  jsdom's own `localStorage` throws on its default `about:blank` origin, so each test replaces it with a fake storage
+  whose reads and writes can be made to throw. An exception in a click listener reaches no caller: jsdom reports it as
+  an `error` event on the window, so the tests of throwing storage collect those events and assert there are none, or
+  they would pass against a script with no `try`/`catch`. (findings 6, 7 and 9)
+- **Discovery.** `node --test` takes quoted glob patterns; a bare directory argument fails on Node 24.19.0.
+  (findings 3)
+- **Node versions and CI.** Node 26 is the Active LTS line and Node 24 the Maintenance LTS line, and jsdom 31.0.1
+  accepts both. CI runs the tests on both, with `actions/checkout@v7` and `actions/setup-node@v7` (`node-version` from a
+  matrix), `npm ci` from the committed lockfile and no npm cache: an uncached install of 28 packages takes seconds, and
+  a cache brings a supply-chain risk the job has no need of. (findings 2 and 10)
+
+### The accessibility check
+
+- **By hand in a real browser, not in CI.** axe-core does not evaluate colour contrast in jsdom, which does no layout
+  or rendering. A browser job in CI would cost a download of a few hundred megabytes, or a server step with the
+  runner's own Chrome, and still could not judge whether a focus ring can be seen. The audit therefore runs in a
+  browser, with axe-core 4.14.1 injected from jsDelivr under its SHA-384 integrity value, beside a keyboard-only pass.
+  Lighthouse adds nothing: it runs axe-core with the WCAG 2.0 A and AA tags only.
+  ([findings](accessibility-audit.md#bottom-line), sections 1, 5, 6 and 8)
+- **Two runs per theme.** A plain run with the tags `wcag2a`, `wcag2aa`, `wcag21a`, `wcag21aa`, `wcag22aa` and
+  `best-practice` leaves the contrast of text over the header and page gradients and over the hero's glow
+  `incomplete`. A second run, with each gradient replaced by its worst-case stop and the glow hidden, resolves them.
+  An `incomplete` result is no pass. (findings 2 to 4)
+- **What the page fails as it stands.** The audit and the keyboard pass find three failures on the current files:
+  the light theme's `.eyebrow` (`#907040`) at 3.68:1 on the darkest page stop, under the 4.5:1 its small text needs;
+  links inside running text, in the lede and the footer, told apart from the text around them by colour alone; and, in
+  the light theme, a navy focus ring on the always-dark header, about 1.3:1. WCAG 1.4.11 asks 3:1 for a focus
+  indicator against the colours next to it. (findings 7 and 9, and the findings the design has to resolve)
+- **The live site.** The organization's WebTools project site sends no content-security policy, so a script injected
+  from the CDN is expected to load on the live SpartanUI site as well; that rests on one site on one date.
+  (verification results)
